@@ -1,0 +1,4 @@
+# Example PyPI package list. One package per line.
+# Bare name = mirror per the `versions` input (all|latest); or pin with ==.
+requests==2.32.3
+urllib3==2.2.2

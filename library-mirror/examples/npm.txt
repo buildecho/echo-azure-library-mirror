@@ -1,0 +1,4 @@
+# Example npm package list. One package per line.
+# Bare name = mirror per the `versions` input (all|latest); or pin a version.
+lodash@4.17.21
+left-pad@1.3.0

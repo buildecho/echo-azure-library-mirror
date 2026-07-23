@@ -1,0 +1,130 @@
+name: "Echo Library Mirror"
+description: >
+  Mirror Echo-vetted npm or PyPI package versions into an Azure Artifacts feed.
+  Pulling through Echo is the vetting gate: malicious versions are never served,
+  so they can never be published to the destination. Runs entirely with
+  credentials the caller controls.
+
+branding:
+  icon: "repeat"
+  color: "black"
+
+inputs:
+  ecosystem:
+    description: "Which ecosystem(s) to mirror in this run: npm, pypi, or all."
+    required: false
+    default: "all"
+  npm-packages:
+    description: >
+      npm package list inline (one per line, bare names or pins). Takes
+      precedence over npm-packages-file. Provide this or npm-packages-file
+      when npm is active.
+    required: false
+    default: ""
+  pypi-packages:
+    description: >
+      PyPI package list inline (one per line, bare names or pins). Takes
+      precedence over pypi-packages-file. Provide this or pypi-packages-file
+      when pypi is active.
+    required: false
+    default: ""
+  npm-packages-file:
+    description: "Path to the npm package list. Used when npm-packages is not set."
+    required: false
+    default: ""
+  pypi-packages-file:
+    description: "Path to the PyPI package list. Used when pypi-packages is not set."
+    required: false
+    default: ""
+  echo-key:
+    description: "Echo Libraries key. Token-only; no username."
+    required: true
+  azure-token:
+    description: "Azure DevOps PAT with Packaging read & write scope."
+    required: true
+
+  # npm destination
+  azure-npm-registry:
+    description: >
+      Azure Artifacts npm registry URL, e.g.
+      https://pkgs.dev.azure.com/<org>/<project>/_packaging/<feed>/npm/registry/
+      Required when ecosystem=npm.
+    required: false
+    default: ""
+
+  # pypi destination
+  azure-pypi-upload:
+    description: >
+      Azure Artifacts PyPI upload URL, e.g.
+      https://pkgs.dev.azure.com/<org>/<project>/_packaging/<feed>/pypi/upload/
+      Required when ecosystem=pypi.
+    required: false
+    default: ""
+  azure-pypi-index:
+    description: >
+      Azure Artifacts PyPI simple index URL, e.g.
+      https://pkgs.dev.azure.com/<org>/<project>/_packaging/<feed>/pypi/simple/
+      Used for the idempotency (already-published) check. Required when ecosystem=pypi.
+    required: false
+    default: ""
+
+  # behaviour
+  versions:
+    description: "Which versions to mirror for a bare (unpinned) name: all | latest."
+    required: false
+    default: "all"
+  max-retries:
+    description: "Pull attempts before giving up (covers live/cold vetting latency)."
+    required: false
+    default: "4"
+  retry-base-seconds:
+    description: "Base seconds for exponential pull backoff."
+    required: false
+    default: "5"
+  dry-run:
+    description: "Resolve and pull, but do not publish to the destination."
+    required: false
+    default: "false"
+  strict:
+    description: "Exit non-zero if any version is blocked or fails (not just failures)."
+    required: false
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Node.js
+      # Always installed: `ecosystem` is matched case-insensitively in sync.py,
+      # and GitHub Actions expressions have no case-folding to mirror that here.
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install Python tooling
+      shell: bash
+      run: pip install --disable-pip-version-check -r "${{ github.action_path }}/requirements.txt"
+
+    - name: Run mirror
+      shell: bash
+      env:
+        INPUT_ECOSYSTEM: ${{ inputs.ecosystem }}
+        INPUT_NPM_PACKAGES: ${{ inputs.npm-packages }}
+        INPUT_PYPI_PACKAGES: ${{ inputs.pypi-packages }}
+        INPUT_NPM_PACKAGES_FILE: ${{ inputs.npm-packages-file }}
+        INPUT_PYPI_PACKAGES_FILE: ${{ inputs.pypi-packages-file }}
+        INPUT_ECHO_KEY: ${{ inputs.echo-key }}
+        INPUT_AZURE_TOKEN: ${{ inputs.azure-token }}
+        INPUT_AZURE_NPM_REGISTRY: ${{ inputs.azure-npm-registry }}
+        INPUT_AZURE_PYPI_UPLOAD: ${{ inputs.azure-pypi-upload }}
+        INPUT_AZURE_PYPI_INDEX: ${{ inputs.azure-pypi-index }}
+        INPUT_VERSIONS: ${{ inputs.versions }}
+        INPUT_MAX_RETRIES: ${{ inputs.max-retries }}
+        INPUT_RETRY_BASE_SECONDS: ${{ inputs.retry-base-seconds }}
+        INPUT_DRY_RUN: ${{ inputs.dry-run }}
+        INPUT_STRICT: ${{ inputs.strict }}
+      run: python "${{ github.action_path }}/sync.py"

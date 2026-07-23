@@ -1,0 +1,106 @@
+# Auto-tags every commit that lands on main with the next patch version,
+# and moves the floating major-version tag (e.g. v1) to match — the standard
+# GitHub Actions consumption model (`uses: buildecho/actions/library-mirror@v1`).
+#
+# Triggered by CI succeeding on main (not a bare push), so a release can never
+# happen without tests passing on that exact commit.
+#
+# Bumping minor/major: push a tag yourself ahead of time (e.g. `v2.0.0`) —
+# the next auto-release continues from the highest existing tag, and a new
+# major creates its own floating tag (v1 stays frozen at its last v1.x.x).
+#
+# Skip a release for a given commit: include "[skip release]" in its message.
+name: Release
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      # Gate the release in an explicit shell step rather than a job-level `if:`
+      # so the decision (and its reasoning) is visible in the run log.
+      - name: Check whether to release
+        id: gate
+        env:
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          MESSAGE: ${{ github.event.workflow_run.head_commit.message }}
+        run: |
+          echo "triggering run conclusion: $CONCLUSION"
+          if [ "$CONCLUSION" != "success" ]; then
+            echo "CI did not succeed; not releasing."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if printf '%s' "$MESSAGE" | grep -qF '[skip release]'; then
+            echo "commit opted out via [skip release]; not releasing."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "proceed=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.proceed == 'true'
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Compute next version
+        id: version
+        if: steps.gate.outputs.proceed == 'true'
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          # Re-running CI for a commit that's already been released must be a
+          # no-op — otherwise every re-run would mint another tag/release for
+          # the same SHA.
+          already=$(git tag --points-at "$SHA" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true)
+          if [ -n "$already" ]; then
+            echo "commit $SHA is already released as $already; skipping"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          latest=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1)
+          if [ -z "$latest" ]; then
+            next="v1.0.0"
+          else
+            IFS='.' read -r major minor patch <<< "${latest#v}"
+            next="v${major}.${minor}.$((patch + 1))"
+          fi
+          major_tag="${next%%.*}"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "next=$next" >> "$GITHUB_OUTPUT"
+          echo "major_tag=$major_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Tag and push
+        if: steps.gate.outputs.proceed == 'true' && steps.version.outputs.skip != 'true'
+        env:
+          NEXT: ${{ steps.version.outputs.next }}
+          MAJOR_TAG: ${{ steps.version.outputs.major_tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$NEXT"
+          git tag -f "$MAJOR_TAG"
+          git push origin "refs/tags/$NEXT"
+          git push origin "refs/tags/$MAJOR_TAG" --force
+
+      - name: Create GitHub release
+        if: steps.gate.outputs.proceed == 'true' && steps.version.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEXT: ${{ steps.version.outputs.next }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: gh release create "$NEXT" --title "$NEXT" --generate-notes --target "$SHA"

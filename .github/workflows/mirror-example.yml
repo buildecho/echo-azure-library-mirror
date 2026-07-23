@@ -1,0 +1,35 @@
+# Example workflow — copy this into your own repository.
+#
+# One step mirrors both npm and PyPI. Each ecosystem has its own package list
+# and destination; both can point at the same Azure Artifacts feed or different
+# feeds. All secrets are your own.
+#
+# To mirror only one ecosystem, set `ecosystem: npm` (or `pypi`) and drop the
+# other ecosystem's inputs.
+name: Mirror Echo libraries
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 * * * *" # hourly
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Mirror Echo libraries
+        uses: buildecho/actions/library-mirror@v1
+        with:
+          ecosystem: all
+          echo-key: ${{ secrets.ECHO_LIBRARIES_KEY }}
+          azure-token: ${{ secrets.AZURE_ARTIFACTS_PAT }}
+          # npm
+          npm-packages-file: packages/npm.txt
+          azure-npm-registry: https://pkgs.dev.azure.com/ORG/PROJECT/_packaging/FEED/npm/registry/
+          # pypi
+          pypi-packages-file: packages/pypi.txt
+          azure-pypi-upload: https://pkgs.dev.azure.com/ORG/PROJECT/_packaging/FEED/pypi/upload/
+          azure-pypi-index: https://pkgs.dev.azure.com/ORG/PROJECT/_packaging/FEED/pypi/simple/
+          versions: all

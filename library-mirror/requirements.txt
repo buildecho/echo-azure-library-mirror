@@ -1,0 +1,4 @@
+# twine >=6.1 reads Metadata-Version 2.4 wheels; 5.x raised
+# "InvalidDistribution: Metadata is missing required fields".
+twine>=6.1
+packaging>=24.2

@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deps
+        run: pip install -r library-mirror/requirements.txt pytest
+      - name: pytest
+        run: pytest test/ -q
+
+  e2e:
+    name: End-to-end (local fakes)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run local end-to-end mirror
+        run: bash test/local-e2e.sh
+
+  azure-e2e:
+    name: End-to-end (Azure DevOps)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Create feed
+        id: feed
+        env:
+          AZURE_DEVOPS_ORG: ${{ vars.AZURE_DEVOPS_ORG }}
+          AZURE_DEVOPS_PROJECT: ${{ vars.AZURE_DEVOPS_PROJECT }}
+          AZURE_ARTIFACTS_PAT: ${{ secrets.AZURE_TOKEN }}
+        run: bash test/azure-e2e-setup.sh
+
+      - name: Run the mirror action against the feed
+        uses: ./library-mirror
+        with:
+          ecosystem: all
+          echo-key: ${{ secrets.ECHO_TOKEN }}
+          azure-token: ${{ secrets.AZURE_TOKEN }}
+          npm-packages: |
+            lodash@4.17.21
+            left-pad@1.3.0
+          pypi-packages: six==1.16.0
+          azure-npm-registry: ${{ steps.feed.outputs.npm-registry }}
+          azure-pypi-upload: ${{ steps.feed.outputs.pypi-upload }}
+          azure-pypi-index: ${{ steps.feed.outputs.pypi-index }}
+
+      - name: Verify the libraries actually landed
+        env:
+          AZURE_ARTIFACTS_PAT: ${{ secrets.AZURE_TOKEN }}
+          NPM_REGISTRY: ${{ steps.feed.outputs.npm-registry }}
+          PYPI_INDEX: ${{ steps.feed.outputs.pypi-index }}
+        run: bash test/azure-e2e-verify.sh
+
+      # Upstream-fallback check: a never-synced package must still resolve via
+      # the feed's public upstream. Runs against a DIFFERENT, pre-provisioned
+      # portal-created feed (AZURE_UPSTREAM_FEED) — a same-ecosystem upstream on
+      # the sync feed above would fool the mirror's exists_at_dest check, and a
+      # working public upstream can't be created via the REST API anyway, only
+      # the portal (see the script header). `!cancelled()` so a failure in the
+      # sync steps above still lets this independent check report its own result.
+      - name: Verify upstream fallback resolves a non-synced package
+        if: ${{ !cancelled() }}
+        env:
+          AZURE_DEVOPS_ORG: ${{ vars.AZURE_DEVOPS_ORG }}
+          AZURE_DEVOPS_PROJECT: ${{ vars.AZURE_DEVOPS_PROJECT }}
+          AZURE_UPSTREAM_FEED: ${{ vars.AZURE_UPSTREAM_FEED }}
+          AZURE_ARTIFACTS_PAT: ${{ secrets.AZURE_TOKEN }}
+        run: bash test/azure-e2e-upstream.sh
+
+      - name: Delete feed
+        if: always()
+        env:
+          AZURE_DEVOPS_ORG: ${{ vars.AZURE_DEVOPS_ORG }}
+          AZURE_DEVOPS_PROJECT: ${{ vars.AZURE_DEVOPS_PROJECT }}
+          AZURE_ARTIFACTS_PAT: ${{ secrets.AZURE_TOKEN }}
+          FEED_ID: ${{ steps.feed.outputs.feed-id }}
+        run: bash test/azure-e2e-teardown.sh

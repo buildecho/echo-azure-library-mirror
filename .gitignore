@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+dist/
+*.tgz
+*.whl
+*.tar.gz
+node_modules/
+.npmrc
