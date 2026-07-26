@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Creates a throwaway Azure Artifacts feed for the real-Azure end-to-end test.
-# The action itself runs against this feed as a separate `uses: ./library-mirror`
+# The action itself runs against this feed as a separate `uses: ./`
 # workflow step — this script only provisions the feed and hands back where it is.
 #
 # Requires: curl, jq. Env:

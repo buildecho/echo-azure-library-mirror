@@ -1,13 +1,13 @@
 # Tests
 
-The tests for `library-mirror` live here. Both suites run locally without any credentials or cloud accounts, so you can check your changes before opening a pull request.
+The tests for this action live here. Both suites run locally without any credentials or cloud accounts, so you can check your changes before opening a pull request.
 
 ## Unit tests
 
 `test_sync.py` covers the core logic: parsing library specs, extracting and sorting versions (PEP 503 and PEP 440), redacting credentials from logs, and validating configuration. They run fast and need no network.
 
 ```bash
-pip install -r library-mirror/requirements.txt pytest
+pip install -r src/requirements.txt pytest
 pytest test/ -q
 ```
 
@@ -30,7 +30,7 @@ Echo's security check runs inside Echo's registry and cannot be reproduced local
 
 ## Real Azure DevOps test
 
-Three scripts, driven by a CI job rather than a single local command, since the middle step runs the action itself the way any caller would (`uses: ./library-mirror`), not a stand-in for it:
+Three scripts, driven by a CI job rather than a single local command, since the middle step runs the action itself the way any caller would (`uses: ./`), not a stand-in for it:
 
 1. `azure-e2e-setup.sh` creates a throwaway feed in a real Azure DevOps org/project via the Feeds REST API, and hands back its registry URLs.
 2. The action runs against that feed as a normal workflow step, mirroring a fixed library list from a real Echo Libraries key.
