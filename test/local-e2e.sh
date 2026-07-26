@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# End-to-end test of library-mirror with zero credentials.
+# End-to-end test of the mirror action with zero credentials.
 #
 # Stands up local stand-ins for Echo (source) and Azure Artifacts (destination):
 #   - two Verdaccio registries for npm (echo proxies the public npm registry)
@@ -50,7 +50,7 @@ chmod -R 777 "$STATE"
 
 echo "== python venv (mirror deps) =="
 python3 -m venv "$VENV"
-"$VENV/bin/pip" install -q -r "$ROOT/library-mirror/requirements.txt"
+"$VENV/bin/pip" install -q -r "$ROOT/src/requirements.txt"
 
 echo "== seed PyPI 'echo' with a real package =="
 "$VENV/bin/pip" download six==1.16.0 --no-deps -d "$STATE/pypi-echo" >/dev/null
@@ -84,7 +84,7 @@ run_mirror() {
   INPUT_AZURE_PYPI_UPLOAD="http://localhost:$PY_AZURE/" \
   INPUT_AZURE_PYPI_INDEX="http://localhost:$PY_AZURE/simple/" \
   INPUT_ECHO_USERNAME=echo INPUT_ECHO_KEY=dummy INPUT_AZURE_TOKEN=dummy \
-    "$VENV/bin/python" "$ROOT/library-mirror/sync.py"
+    "$VENV/bin/python" "$ROOT/src/sync.py"
 }
 
 echo; echo "== FIRST RUN =="
@@ -119,7 +119,7 @@ INPUT_ECHO_NPM_REGISTRY="http://localhost:$NPM_ECHO/" \
 INPUT_AZURE_NPM_REGISTRY="http://localhost:$NPM_AZURE/" \
 INPUT_ECHO_USERNAME=echo INPUT_ECHO_KEY=dummy INPUT_AZURE_TOKEN=dummy \
 INPUT_DRY_RUN=true \
-  "$VENV/bin/python" "$ROOT/library-mirror/sync.py" | tee "$STATE/dryrun.log"
+  "$VENV/bin/python" "$ROOT/src/sync.py" | tee "$STATE/dryrun.log"
 grep -q "dry-run    : 1" "$STATE/dryrun.log" || fail "expected 1 dry-run entry"
 grep -q "published  : 0" "$STATE/dryrun.log" || fail "dry-run must not count as published"
 curl -sf "http://localhost:$NPM_AZURE/is-odd" >/dev/null 2>&1 \

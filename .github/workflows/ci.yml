@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install deps
-        run: pip install -r library-mirror/requirements.txt pytest
+        run: pip install -r src/requirements.txt pytest
       - name: pytest
         run: pytest test/ -q
 
@@ -54,7 +54,7 @@ jobs:
         run: bash test/azure-e2e-setup.sh
 
       - name: Run the mirror action against the feed
-        uses: ./library-mirror
+        uses: ./
         with:
           ecosystem: all
           echo-key: ${{ secrets.ECHO_TOKEN }}

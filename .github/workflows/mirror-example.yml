@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Mirror Echo libraries
-        uses: buildecho/actions/library-mirror@v1
+        uses: buildecho/echo-azure-library-mirror@v1
         with:
           ecosystem: all
           echo-key: ${{ secrets.ECHO_LIBRARIES_KEY }}

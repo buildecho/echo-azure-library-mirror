@@ -1,6 +1,6 @@
 # Auto-tags every commit that lands on main with the next patch version,
 # and moves the floating major-version tag (e.g. v1) to match — the standard
-# GitHub Actions consumption model (`uses: buildecho/actions/library-mirror@v1`).
+# GitHub Actions consumption model (`uses: buildecho/echo-azure-library-mirror@v1`).
 #
 # Triggered by CI succeeding on main (not a bare push), so a release can never
 # happen without tests passing on that exact commit.

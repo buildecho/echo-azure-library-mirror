@@ -107,7 +107,7 @@ runs:
 
     - name: Install Python tooling
       shell: bash
-      run: pip install --disable-pip-version-check -r "${{ github.action_path }}/requirements.txt"
+      run: pip install --disable-pip-version-check -r "${{ github.action_path }}/src/requirements.txt"
 
     - name: Run mirror
       shell: bash
@@ -127,4 +127,4 @@ runs:
         INPUT_RETRY_BASE_SECONDS: ${{ inputs.retry-base-seconds }}
         INPUT_DRY_RUN: ${{ inputs.dry-run }}
         INPUT_STRICT: ${{ inputs.strict }}
-      run: python "${{ github.action_path }}/sync.py"
+      run: python "${{ github.action_path }}/src/sync.py"

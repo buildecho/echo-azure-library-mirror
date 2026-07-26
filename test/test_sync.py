@@ -1,4 +1,4 @@
-"""Unit tests for the library-mirror orchestrator (pure logic, no network).
+"""Unit tests for the mirror orchestrator (pure logic, no network).
 
 Run: pytest test/    (from the repo root)
 The docker-backed end-to-end test lives in test/local-e2e.sh.
