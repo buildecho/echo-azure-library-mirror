@@ -1,9 +1,5 @@
 name: "Echo Library Mirror"
-description: >
-  Mirror Echo-vetted npm or PyPI package versions into an Azure Artifacts feed.
-  Pulling through Echo is the vetting gate: malicious versions are never served,
-  so they can never be published to the destination. Runs entirely with
-  credentials the caller controls.
+description: "Mirror Echo npm and PyPI libraries into an Azure Artifacts feed you own, keeping builds on safe, patched versions."
 
 branding:
   icon: "repeat"
